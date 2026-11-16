@@ -38,7 +38,9 @@ so honestly the look is a big part of the point here :)
 
   There's also a **Show supply chain** button at the top of the details pane, which opens up the whole recipe tree for
   that item. For each step you can see how much you'd need for your target rate, how much you're making right now, and
-  which recipe it uses (alternates included):
+  which recipe it uses (alternates included). There's also a strip above the tree with every raw resource the whole
+  chain needs at your target rate, added up across every branch, next to how much of it you're extracting right now.
+  Click its label to fold it down to one line if you'd rather just look at the tree:
 
   ![The supply chain view for an Adaptive Control Unit, showing every input down to the ingots](images/supply_chain_tab.png)
 

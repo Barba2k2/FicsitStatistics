@@ -100,6 +100,22 @@ namespace FicsitSupplyChain
 
 	FTree Build(const FInputs& Inputs, FItem Root);
 
+	/** One raw resource the whole tree needs, summed over every branch that mines it. */
+	struct FRawNeed
+	{
+		FItem Item;
+		/** Items/min (m³/min for fluids) needed for 1 /min of the root. */
+		float PerRoot = 0.f;
+		/** What the factory extracts of it right now, for all uses. */
+		float Produced = 0.f;
+	};
+
+	/**
+	 * Every Raw leaf of the tree, summed per item and sorted most needed first. Loop and too-deep branches aren't
+	 * followed, so they add nothing here, and byproducts aren't subtracted (same as the rest of the tree).
+	 */
+	TArray<FRawNeed> RawNeeds(const FTree& Tree);
+
 	/** Alternate recipes come from hard drives. The game has no flag for it, but every one is named Recipe_Alternate_*. */
 	bool IsAlternate(FRecipe Recipe);
 

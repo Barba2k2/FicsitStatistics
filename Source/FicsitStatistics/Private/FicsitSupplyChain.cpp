@@ -283,6 +283,28 @@ namespace FicsitSupplyChain
 		return MoveTemp(Builder.Tree);
 	}
 
+	TArray<FRawNeed> RawNeeds(const FTree& Tree)
+	{
+		TArray<FRawNeed> Needs;
+		for (const FNode& Node : Tree.Nodes)
+		{
+			if (Node.Kind != ENodeKind::Raw)
+			{
+				continue;
+			}
+			FRawNeed* Need = Needs.FindByPredicate([&Node](const FRawNeed& Each) { return Each.Item == Node.Item; });
+			if (!Need)
+			{
+				Need = &Needs.AddDefaulted_GetRef();
+				Need->Item = Node.Item;
+				Need->Produced = Node.Produced;
+			}
+			Need->PerRoot += Node.PerRoot;
+		}
+		Needs.StableSort([](const FRawNeed& A, const FRawNeed& B) { return A.PerRoot > B.PerRoot; });
+		return Needs;
+	}
+
 	FString Describe(const FTree& Tree, float TargetPerMinute)
 	{
 		if (Tree.Nodes.Num() == 0)
@@ -292,6 +314,14 @@ namespace FicsitSupplyChain
 		FString Text = FString::Printf(TEXT("%s at %.2f /min: %d nodes, %d items, ceiling %.2f /min (max %.2f), bottleneck %s\n"),
 			*ItemName(Tree.Nodes[0].Item), TargetPerMinute, Tree.Nodes.Num(), Tree.TotalPerRoot.Num(),
 			Tree.Ceiling, Tree.CeilingMax, *ItemName(Tree.Bottleneck));
+
+		FString Raw;
+		for (const FRawNeed& Need : RawNeeds(Tree))
+		{
+			Raw += FString::Printf(TEXT("%s%s %.2f (extracting %.2f)"), Raw.IsEmpty() ? TEXT("") : TEXT(", "),
+				*ItemName(Need.Item), Need.PerRoot * TargetPerMinute, Need.Produced);
+		}
+		Text += FString::Printf(TEXT("  raw resources: %s\n"), Raw.IsEmpty() ? TEXT("none") : *Raw);
 
 		for (const FNode& Node : Tree.Nodes)
 		{

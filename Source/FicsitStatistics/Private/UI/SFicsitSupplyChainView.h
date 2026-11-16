@@ -59,7 +59,23 @@ private:
 		FLinearColor StatusColor = FLinearColor::White;
 	};
 
+	/** One raw resource in the strip above the tree. Like FRow, widgets read it through attributes. */
+	struct FRawChip
+	{
+		TSubclassOf<UFGItemDescriptor> Item;
+		FText NeededText;
+		/** What the factory extracts of it now, for all uses. */
+		FText MakingText;
+		FText Tooltip;
+		/** Extracting now / Needed, for the bar under the chip. */
+		float Fraction = 0.f;
+		FLinearColor StatusColor = FLinearColor::White;
+	};
+
 	TSharedRef<SWidget> BuildHeader();
+	TSharedRef<SWidget> BuildRawStrip();
+	TSharedRef<SWidget> BuildRawChip(const TSharedRef<FRawChip>& Chip);
+	void RebuildRaw();
 	TSharedRef<SWidget> BuildColumnHeader();
 	TSharedRef<SWidget> BuildRow(const TSharedRef<FRow>& Row);
 	TSharedRef<SWidget> BuildRecipeCell(const TSharedRef<FRow>& Row);
@@ -90,6 +106,14 @@ private:
 	TArray<TSharedRef<FRow>> Rows;
 	FString RowSignature;
 	TSharedPtr<SVerticalBox> RowList;
+
+	TArray<TSharedRef<FRawChip>> RawChips;
+	FString RawSignature;
+	TSharedPtr<class SWrapBox> RawList;
+	/** The strip is folded down to its label. Saved per player. */
+	bool bRawCollapsed = false;
+	/** "5 resources, 2 short": what the folded strip shows under its label. */
+	FText RawSummary;
 
 	// Header figures, refreshed with the rows. An empty value hides its figure.
 	FText CeilingText;

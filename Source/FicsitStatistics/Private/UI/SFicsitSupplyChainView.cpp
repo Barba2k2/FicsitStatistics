@@ -14,6 +14,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -29,6 +30,45 @@ namespace FicsitChainViewDetail
 	constexpr float MakingColumn = 110.f;
 	constexpr float RecipeColumn = 330.f;
 	constexpr float IndentPerLevel = 22.f;
+	constexpr float RawChipWidth = 210.f;
+	// Whether the player folded the raw resources strip away, saved next to their other window prefs.
+	const TCHAR* RawCollapsedKey = TEXT("SupplyChainRawCollapsed");
+
+	/** How much of a need today's production covers, as a color: covered, partly, or not at all. */
+	FLinearColor CoverageColor(float Making, float Needed)
+	{
+		return Needed <= 0.f || Making >= Needed * 0.995f ? FicsitStatsStyle::Surplus()
+			: Making > 0.f ? FicsitStatsStyle::Warning()
+			: FicsitStatsStyle::Deficit();
+	}
+
+	/** The thin bar along the bottom of a tile, filled to Fraction in Color. */
+	TSharedRef<SWidget> MakeCoverageBar(const TAttribute<float>& Fraction, const TAttribute<FSlateColor>& Color)
+	{
+		return SNew(SBox)
+			.HeightOverride(3.f)
+			[
+				SNew(SBorder)
+				.BorderImage(FicsitStatsStyle::White())
+				.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.25f))
+				.Padding(0.f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(TAttribute<float>::CreateLambda([Fraction]() { return FMath::Clamp(Fraction.Get(), 0.f, 1.f); }))
+					[
+						SNew(SBorder)
+						.BorderImage(FicsitStatsStyle::White())
+						.BorderBackgroundColor(Color)
+					]
+					+ SHorizontalBox::Slot()
+					.FillWidth(TAttribute<float>::CreateLambda([Fraction]() { return 1.f - FMath::Clamp(Fraction.Get(), 0.f, 1.f); }))
+					[
+						SNew(SSpacer)
+					]
+				]
+			];
+	}
 
 	using FicsitWidgets::MakeText;
 
@@ -204,6 +244,12 @@ void SFicsitSupplyChainView::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		.Padding(0.f, 10.f, 0.f, 0.f)
 		[
+			BuildRawStrip()
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0.f, 10.f, 0.f, 0.f)
+		[
 			BuildColumnHeader()
 		]
 		+ SVerticalBox::Slot()
@@ -339,6 +385,234 @@ TSharedRef<SWidget> SFicsitSupplyChainView::BuildHeader()
 					EVisibility::Visible)
 			]
 		];
+}
+
+TSharedRef<SWidget> SFicsitSupplyChainView::BuildRawStrip()
+{
+	bRawCollapsed = FicsitPlayerPrefs::GetBool(ChainDetail::RawCollapsedKey, false);
+	return SNew(SBorder)
+		.BorderImage(FicsitStatsStyle::White())
+		.BorderBackgroundColor(FicsitStatsStyle::RowTile())
+		.Padding(0.f)
+		.Visibility_Lambda([this]() { return RawChips.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed; })
+		[
+			SNew(SHorizontalBox)
+			// The label doubles as the toggle, so players who only want the tree can fold the strip down to one line.
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Top)
+			[
+				SNew(SFicsitClickBox)
+				.HoverColor(FicsitStatsStyle::RowTileHover())
+				.Padding_Lambda([this]() { return bRawCollapsed ? FMargin(6.f, 6.f, 16.f, 6.f) : FMargin(6.f, 12.f, 16.f, 10.f); })
+				.ToolTipText_Lambda([this]()
+				{
+					return bRawCollapsed ? LOCTEXT("ChainRawExpandTooltip", "Show the raw resources")
+						: LOCTEXT("ChainRawCollapseTooltip", "Hide the raw resources and leave more room for the tree");
+				})
+				.OnClicked_Lambda([this]()
+				{
+					bRawCollapsed = !bRawCollapsed;
+					FicsitPlayerPrefs::SetBool(ChainDetail::RawCollapsedKey, bRawCollapsed);
+				})
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(SBox)
+						.WidthOverride(18.f)
+						.HeightOverride(18.f)
+						[
+							SNew(SFicsitDisclosureGlyph)
+							.Expanded_Lambda([this]() { return !bRawCollapsed; })
+							.Color(FicsitStatsStyle::TextSecondary())
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(4.f, 0.f, 0.f, 0.f)
+					[
+						// A minimum rather than a fixed width, so the folded summary has room on the same line.
+						SNew(SBox)
+						.MinDesiredWidth(130.f)
+						[
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot().AutoHeight()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								[
+									ChainDetail::MakeText(LOCTEXT("ChainRawTitle", "Raw resources"), FontSize::Small)
+								]
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								.Padding(10.f, 0.f, 0.f, 0.f)
+								[
+									SNew(SBox)
+									.Visibility_Lambda([this]() { return bRawCollapsed ? EVisibility::Visible : EVisibility::Collapsed; })
+									[
+										ChainDetail::MakeText(TAttribute<FText>::CreateLambda([this]() { return RawSummary; }),
+											FontSize::Small, FSlateColor(FicsitStatsStyle::TextSecondary()))
+									]
+								]
+							]
+							+ SVerticalBox::Slot().AutoHeight()
+							[
+								SNew(SBox)
+								.Visibility_Lambda([this]() { return bRawCollapsed ? EVisibility::Collapsed : EVisibility::Visible; })
+								[
+									ChainDetail::MakeText(LOCTEXT("ChainRawCaption", "for the target"), FontSize::Caption, FSlateColor(FicsitStatsStyle::TextSecondary()))
+								]
+							]
+						]
+					]
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			.Padding(0.f, 8.f, 12.f, 8.f)
+			[
+				SNew(SBox)
+				.Visibility_Lambda([this]() { return bRawCollapsed ? EVisibility::Collapsed : EVisibility::Visible; })
+				[
+					SAssignNew(RawList, SWrapBox)
+					.UseAllottedSize(true)
+					.InnerSlotPadding(FVector2D(6.f, 6.f))
+				]
+			]
+		];
+}
+
+TSharedRef<SWidget> SFicsitSupplyChainView::BuildRawChip(const TSharedRef<FRawChip>& Chip)
+{
+	const TSubclassOf<UFGItemDescriptor> Item = Chip->Item;
+	return SNew(SBox)
+		.WidthOverride(ChainDetail::RawChipWidth)
+		.ToolTipText_Lambda([Chip]() { return Chip->Tooltip; })
+		[
+			SNew(SFicsitClickBox)
+			.Color(FicsitStatsStyle::SectionStrip())
+			.HoverColor(FicsitStatsStyle::RowTileHover())
+			.OnRightClicked_Lambda([this, Item]() { OnShowDetails.ExecuteIfBound(Item); })
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(6.f, 4.f, 8.f, 4.f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(SBox)
+						.WidthOverride(28.f)
+						.HeightOverride(28.f)
+						[
+							SNew(SImage)
+							.Image(FicsitStatsStyle::ItemIcon(Item))
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.f)
+					.VAlign(VAlign_Center)
+					.Padding(8.f, 0.f, 0.f, 0.f)
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot().AutoHeight()
+						[
+							ChainDetail::MakeText(UFGItemDescriptor::GetItemName(Item), FontSize::Caption, FSlateColor(FicsitStatsStyle::TextSecondary()))
+						]
+						+ SVerticalBox::Slot().AutoHeight()
+						[
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							[
+								ChainDetail::MakeText(TAttribute<FText>::CreateLambda([Chip]() { return Chip->NeededText; }), FontSize::Body)
+							]
+							// What's extracted now, colored like the tree's Making column so a shortfall stands out. It gives way to the need when space runs out.
+							+ SHorizontalBox::Slot()
+							.FillWidth(1.f)
+							.VAlign(VAlign_Bottom)
+							.HAlign(HAlign_Right)
+							.Padding(6.f, 0.f, 0.f, 2.f)
+							[
+								ChainDetail::MakeText(TAttribute<FText>::CreateLambda([Chip]() { return Chip->MakingText; }), FontSize::Caption,
+									TAttribute<FSlateColor>::CreateLambda([Chip]() { return FSlateColor(Chip->StatusColor); }))
+							]
+						]
+					]
+				]
+				// How much of the need today's extraction covers, like the tree rows.
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					ChainDetail::MakeCoverageBar(TAttribute<float>::CreateLambda([Chip]() { return Chip->Fraction; }),
+						TAttribute<FSlateColor>::CreateLambda([Chip]() { return FSlateColor(Chip->StatusColor); }))
+				]
+			]
+		];
+}
+
+void SFicsitSupplyChainView::RebuildRaw()
+{
+	TArray<TSharedRef<FRawChip>> NewChips;
+	FString Signature;
+	int32 Short = 0;
+	// A raw root is the whole tree, so the strip would only repeat it.
+	const bool bRawRoot = Tree.Nodes.Num() > 0 && Tree.Nodes[0].Kind == FSC::ENodeKind::Raw;
+	if (!bRawRoot)
+	{
+		for (const FSC::FRawNeed& Need : FSC::RawNeeds(Tree))
+		{
+			const float Needed = Need.PerRoot * Target;
+			TSharedRef<FRawChip> Chip = MakeShared<FRawChip>();
+			Chip->Item = Need.Item;
+			Chip->NeededText = FicsitStatsStyle::FormatRate(Needed, Need.Item);
+			// No unit, since the need right next to it already shows one.
+			Chip->MakingText = FText::Format(LOCTEXT("ChainRawChipNow", "{0} now"), FicsitStatsStyle::FormatNumber(Need.Produced));
+			Chip->Fraction = Needed > 0.f ? Need.Produced / Needed : 1.f;
+			Chip->StatusColor = ChainDetail::CoverageColor(Need.Produced, Needed);
+			Chip->Tooltip = FText::Format(LOCTEXT("ChainRawChipTooltip", "{0}\nNeeded for the target, summed over every branch: {1}\nExtracting now, for all uses: {2}"),
+				UFGItemDescriptor::GetItemName(Need.Item), Chip->NeededText, FicsitStatsStyle::FormatRate(Need.Produced, Need.Item));
+			Signature += Need.Item ? Need.Item->GetPathName() + TEXT("|") : FString();
+			NewChips.Add(Chip);
+			if (Need.Produced < Needed * 0.995f)
+			{
+				++Short;
+			}
+		}
+	}
+	RawSummary = Short > 0
+		? FText::Format(LOCTEXT("ChainRawSummaryShort", "{0} {0}|plural(one=resource,other=resources), {1} short"), NewChips.Num(), Short)
+		: FText::Format(LOCTEXT("ChainRawSummary", "{0} {0}|plural(one=resource,other=resources), all covered"), NewChips.Num());
+
+	// Same items in the same order: update in place so the strip doesn't flash every refresh.
+	if (Signature == RawSignature && NewChips.Num() == RawChips.Num())
+	{
+		for (int32 Index = 0; Index < RawChips.Num(); ++Index)
+		{
+			*RawChips[Index] = *NewChips[Index];
+		}
+		return;
+	}
+	RawSignature = Signature;
+	RawChips = MoveTemp(NewChips);
+	if (RawList.IsValid())
+	{
+		RawList->ClearChildren();
+		for (const TSharedRef<FRawChip>& Chip : RawChips)
+		{
+			RawList->AddSlot()[BuildRawChip(Chip)];
+		}
+	}
 }
 
 TSharedRef<SWidget> SFicsitSupplyChainView::BuildColumnHeader()
@@ -509,6 +783,7 @@ void SFicsitSupplyChainView::Refresh(const TMap<UClass*, int32>& Milestone)
 
 void SFicsitSupplyChainView::Rebuild()
 {
+	RebuildRaw();
 	if (!RowList.IsValid())
 	{
 		return;
@@ -558,9 +833,7 @@ void SFicsitSupplyChainView::Rebuild()
 		Row->MakingText = FicsitStatsStyle::FormatTableRate(Row->Making, Node.Item);
 		Row->Fraction = Row->Needed > 0.f ? Row->Making / Row->Needed : 1.f;
 		Row->StatusColor = Node.Kind == FSC::ENodeKind::Repeat ? FicsitStatsStyle::TextSecondary()
-			: Row->Fraction >= 0.995f ? FicsitStatsStyle::Surplus()
-			: Row->Making > 0.f ? FicsitStatsStyle::Warning()
-			: FicsitStatsStyle::Deficit();
+			: ChainDetail::CoverageColor(Row->Making, Row->Needed);
 
 		switch (Node.Kind)
 		{
@@ -754,28 +1027,10 @@ TSharedRef<SWidget> SFicsitSupplyChainView::BuildRow(const TSharedRef<FRow>& Row
 				.AutoHeight()
 				[
 					SNew(SBox)
-					.HeightOverride(3.f)
 					.Visibility(bLeafLike ? EVisibility::Hidden : EVisibility::HitTestInvisible)
 					[
-						SNew(SBorder)
-						.BorderImage(FicsitStatsStyle::White())
-						.BorderBackgroundColor(FLinearColor(0.f, 0.f, 0.f, 0.25f))
-						.Padding(0.f)
-						[
-							SNew(SHorizontalBox)
-							+ SHorizontalBox::Slot()
-							.FillWidth(TAttribute<float>::CreateLambda([Row]() { return FMath::Clamp(Row->Fraction, 0.f, 1.f); }))
-							[
-								SNew(SBorder)
-								.BorderImage(FicsitStatsStyle::White())
-								.BorderBackgroundColor_Lambda([Row]() { return Row->StatusColor; })
-							]
-							+ SHorizontalBox::Slot()
-							.FillWidth(TAttribute<float>::CreateLambda([Row]() { return 1.f - FMath::Clamp(Row->Fraction, 0.f, 1.f); }))
-							[
-								SNew(SSpacer)
-							]
-						]
+						ChainDetail::MakeCoverageBar(TAttribute<float>::CreateLambda([Row]() { return Row->Fraction; }),
+							TAttribute<FSlateColor>::CreateLambda([Row]() { return FSlateColor(Row->StatusColor); }))
 					]
 				]
 			]
