@@ -1,8 +1,8 @@
 {
 	"FileVersion": 3,
-	"Version": 1,
-	"VersionName": "1.0.0",
-	"SemVersion": "1.0.0",
+	"Version": 2,
+	"VersionName": "1.0.1",
+	"SemVersion": "1.0.1",
 	"GameVersion": ">=517554",
 	"FriendlyName": "FICSIT Statistics",
 	"Description": "Global production and consumption statistics for every item, with history graphs, in a native Satisfactory-style UI.",
