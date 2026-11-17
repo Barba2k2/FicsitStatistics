@@ -1,5 +1,10 @@
 #include "FicsitRateEstimator.h"
 
+FFicsitRateEstimator::FFicsitRateEstimator()
+	: FFicsitRateEstimator(FSettings())
+{
+}
+
 FFicsitRateEstimator::FFicsitRateEstimator(FSettings InSettings)
 	: Settings(MoveTemp(InSettings))
 {

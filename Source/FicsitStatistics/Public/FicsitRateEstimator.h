@@ -40,7 +40,10 @@ public:
 		double MedianWindowSeconds = 0.0;
 	};
 
-	explicit FFicsitRateEstimator(FSettings InSettings = FSettings());
+	// Two constructors instead of a "= FSettings()" default argument, since clang (the Linux server build) won't use
+	// FSettings' member initializers before this class is complete.
+	FFicsitRateEstimator();
+	explicit FFicsitRateEstimator(FSettings InSettings);
 
 	/** Forgets everything and counts from StartTime (world seconds), e.g. when a save loads. */
 	void Reset(double StartTime);
