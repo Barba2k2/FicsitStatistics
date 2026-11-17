@@ -69,7 +69,8 @@ it, and click it again to flip the order.
 
 ## How the rates are measured
 
-For anyone curious about what's going on under the hood:
+For anyone curious about what's going on under the hood (and if you want the full deep dive, check out the
+[FAQ](docs/FAQ.md)):
 
 - **Manufacturers and extractors: real counts.** Native hooks fire when a machine grabs a cycle's ingredients and when
   it finishes a cycle, and we count the actual amounts (Somersloop boost included).
@@ -87,7 +88,8 @@ For anyone curious about what's going on under the hood:
 - **Generators:** fuel burn gets worked out from power capacity, fuel energy, and current load. That's how the game
   itself burns fuel, so it lines up with what's actually burned. Coal and nuclear plants count water too, and nuclear
   plants count waste.
-- **AWESOME Sink and Space Elevator:** items get counted as they're consumed, averaged over 60 s.
+- **AWESOME Sink and Space Elevator:** items get counted as they're consumed, and they use the same change-detecting
+  average as the item's production, so the Sink's share lines up with what you're making.
 
 On my test save (338 machines, 5,616 buildables), the scan takes about 0.7 ms every 5 s, and the hooks handle around 75
 tiny counting events per second. Both numbers show up in the once-a-minute summary (`LogFicsitStatistics: Performance`).
