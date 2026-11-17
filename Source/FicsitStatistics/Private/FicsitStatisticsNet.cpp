@@ -1,6 +1,5 @@
 #include "FicsitStatisticsNet.h"
 
-#include "FicsitStatistics.h"
 #include "FicsitStatisticsConfig.h"
 #include "FicsitStatisticsSubsystem.h"
 #include "Net/UnrealNetwork.h"
