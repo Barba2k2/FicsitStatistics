@@ -98,3 +98,8 @@ That summary logs at Verbose so that it doesn't clog up everyone's logs. If you 
 [Core.Log]
 LogFicsitStatistics=Verbose
 ```
+
+## License
+
+FICSIT Statistics is released under the [MIT License](LICENSE). That covers the mod's own code and assets only.
+Satisfactory and its assets belong to Coffee Stain Studios, and Unreal Engine is covered by Epic Games' EULA.
