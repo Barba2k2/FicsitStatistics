@@ -18,6 +18,42 @@
 #include "Patching/NativeHookManager.h"
 #include "Resources/FGExtractableResourceInterface.h"
 #include "Resources/FGItemDescriptor.h"
+#include "UObject/UnrealType.h"
+
+TSubclassOf<UFGItemDescriptor> FicsitResolveExtractorItem(const AFGBuildableResourceExtractor* Extractor)
+{
+	if (!IsValid(Extractor))
+	{
+		return nullptr;
+	}
+
+	// Looked up once. Function-local statics are initialised thread-safely, and the hooks run on worker threads.
+	static const FProperty* const ResourceProperty =
+		AFGBuildableResourceExtractor::StaticClass()->FindPropertyByName(TEXT("mExtractableResource"));
+
+	UObject* ResourceObject = nullptr;
+	if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(ResourceProperty))
+	{
+		ResourceObject = ObjectProperty->GetObjectPropertyValue_InContainer(Extractor);
+	}
+	else if (const FInterfaceProperty* InterfaceProperty = CastField<FInterfaceProperty>(ResourceProperty))
+	{
+		ResourceObject = InterfaceProperty->GetPropertyValuePtr_InContainer(Extractor)->GetObject();
+	}
+	else
+	{
+		// The property is gone or changed type (a future game update). Fall back to the accessor rather than counting nothing.
+		const TScriptInterface<IFGExtractableResourceInterface> Resource = Extractor->GetExtractableResource();
+		return Resource.GetInterface() ? Resource.GetInterface()->GetResourceClass() : nullptr;
+	}
+
+	if (!IsValid(ResourceObject))
+	{
+		return nullptr;
+	}
+	IFGExtractableResourceInterface* Resource = Cast<IFGExtractableResourceInterface>(ResourceObject);
+	return Resource ? Resource->GetResourceClass() : nullptr;
+}
 
 FCriticalSection FFicsitEventCounters::Lock;
 FFicsitCounts FFicsitEventCounters::Pending;
@@ -236,13 +272,9 @@ void FFicsitEventCounters::RecordCycleCompleted(AFGBuildableFactory* Factory)
 
 	if (const AFGBuildableResourceExtractor* Extractor = Cast<AFGBuildableResourceExtractor>(Factory))
 	{
-		const TScriptInterface<IFGExtractableResourceInterface> Resource = Extractor->GetExtractableResource();
-		if (Resource.GetInterface())
+		if (const TSubclassOf<UFGItemDescriptor> Item = FicsitResolveExtractorItem(Extractor))
 		{
-			if (const TSubclassOf<UFGItemDescriptor> Item = Resource.GetInterface()->GetResourceClass())
-			{
-				Add(true, EFicsitRateSource::Extraction, Item.Get(), Extractor->GetNumExtractedItemsPerCycleConverted());
-			}
+			Add(true, EFicsitRateSource::Extraction, Item.Get(), Extractor->GetNumExtractedItemsPerCycleConverted());
 		}
 	}
 }

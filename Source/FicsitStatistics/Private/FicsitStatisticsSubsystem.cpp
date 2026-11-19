@@ -576,12 +576,7 @@ void AFicsitStatisticsSubsystem::ScanExtractors(const TArray<AFGBuildableResourc
 
 	for (const AFGBuildableResourceExtractor* Extractor : Extractors)
 	{
-		const TScriptInterface<IFGExtractableResourceInterface> Resource = Extractor->GetExtractableResource();
-		if (!Resource.GetInterface())
-		{
-			continue;
-		}
-		const TSubclassOf<UFGItemDescriptor> Item = Resource.GetInterface()->GetResourceClass();
+		const TSubclassOf<UFGItemDescriptor> Item = FicsitResolveExtractorItem(Extractor);
 		const float CycleTime = Extractor->GetProductionCycleTime();
 		if (!Item || CycleTime <= KINDA_SMALL_NUMBER)
 		{
