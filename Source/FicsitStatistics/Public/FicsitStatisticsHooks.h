@@ -5,17 +5,6 @@
 
 class AFGBuildableFactory;
 class AFGBuildableManufacturer;
-class AFGBuildableResourceExtractor;
-class UFGItemDescriptor;
-
-/**
- * The item class an extractor produces (from its resource node, well or water volume), or null when it has no valid
- * resource. Reads the game's own property by reflection instead of AFGBuildableResourceExtractor::GetExtractableResource(),
- * an inline accessor compiled into this module: if the game's class layout changes in an update, the inline read
- * returns a garbage pointer and crashes inside TScriptInterface (EXCEPTION_ACCESS_VIOLATION in GetInterfaceAddress).
- * Reflection takes the offset from the running game's UClass, so it can't go stale that way.
- */
-TSubclassOf<UFGItemDescriptor> FicsitResolveExtractorItem(const AFGBuildableResourceExtractor* Extractor);
 
 /** Item amounts counted since the last drain, per direction and source (display units: items, or m³ for fluids). */
 struct FFicsitCounts
